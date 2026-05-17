@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>День · Планувальник</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F5F0;--bg2:#EFEDE8;--surface:#FDFCFA;
+  --border:#E5E1D8;--text:#2A2520;--text-muted:#9A9088;--text-light:#C5BFB5;
+  --shadow:0 2px 12px rgba(42,37,32,.08);--shadow-h:0 6px 24px rgba(42,37,32,.14);
+  --radius:14px;--radius-sm:8px;
+  --ROW:34px; /* height of each 10-min row */
+  --LABEL-W:62px; /* fixed time label width */
+  --STATUS-W:26px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ═══ HEADER ═══ */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:300}
+header h1{font-family:'DM Sans',sans-serif;font-size:20px;font-weight:500;letter-spacing:.01em;white-space:nowrap;flex-shrink:0}
+header h1 span{font-style:normal;font-weight:500}
+header h1 em{color:var(--text-muted);font-style:normal;margin:0 4px;font-size:18px;font-weight:300}
+
+.view-toggle{display:flex;gap:2px;padding:3px;background:var(--bg2);border-radius:20px;flex-shrink:0}
+.view-btn{padding:4px 12px;border-radius:16px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;color:var(--text-muted);transition:all .2s}
+.view-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(42,37,32,.1)}
+
+.day-tabs{display:flex;gap:3px;flex-wrap:wrap}
+.day-tab{padding:5px 11px;border-radius:18px;border:1px solid var(--border);background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text-muted);cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2}
+.day-tab:hover{background:var(--bg2);color:var(--text)}
+.day-tab.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.day-tab-name{font-weight:500}
+.day-tab-date{font-size:10px;opacity:.7}
+
+.header-actions{margin-left:auto;display:flex;gap:6px}
+.btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;color:var(--text)}
+.btn:hover{background:var(--bg2)}
+.btn.danger:hover{background:#FCEAEA;border-color:#E8A0A0;color:#C0392B}
+.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn.primary:hover{opacity:.85}
+
+/* ═══ BALANCE ═══ */
+.balance-wrap{padding:11px 24px 0}
+.balance-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:6px;font-weight:500}
+.balance-bar{height:6px;border-radius:3px;display:flex;overflow:hidden;background:var(--border);gap:2px}
+.balance-segment{height:100%;border-radius:3px;transition:width .4s}
+.balance-legend{display:flex;gap:11px;margin-top:5px;flex-wrap:wrap}
+.balance-legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted)}
+.balance-legend-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.balance-warning{margin-top:5px;font-size:11px;color:#C0392B;display:none}
+.balance-warning.show{display:block}
+
+/* ═══ LAYOUT ═══ */
+.layout{display:grid;grid-template-columns:282px 1fr;min-height:calc(100vh - 126px)}
+
+/* ═══ LIBRARY ═══ */
+.library{background:var(--surface);border-right:1px solid var(--border);padding:16px 14px;overflow-y:auto;max-height:calc(100vh - 126px);position:sticky;top:126px}
+.library-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.cat-section{margin-bottom:14px}
+.cat-header{display:flex;align-items:center;gap:4px;justify-content:space-between;margin-bottom:6px}
+.cat-name{font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;display:flex;align-items:center;gap:5px}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.cat-actions{opacity:0;transition:opacity .2s}
+.cat-section:hover .cat-actions{opacity:1}
+.icon-btn{width:20px;height:20px;border-radius:5px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-muted);transition:all .15s}
+.icon-btn:hover{background:var(--bg2);color:var(--text)}
+.block-card{padding:7px 9px;border-radius:var(--radius-sm);margin-bottom:3px;cursor:grab;display:flex;flex-direction:column;gap:2px;transition:all .2s;position:relative;user-select:none;border:1.5px solid transparent}
+.block-card:active{cursor:grabbing}
+.block-card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.block-card:hover .block-card-actions{opacity:1}
+.block-card-actions{position:absolute;top:4px;right:4px;display:flex;gap:2px;opacity:0;transition:opacity .2s}
+.block-title{font-size:12px;font-weight:500;padding-right:40px}
+.block-meta{font-size:10px;opacity:.65;display:flex;gap:6px;flex-wrap:wrap}
+.block-note-snip{font-size:10px;opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Category drag reorder */
+.cat-drag-handle{
+  font-size:14px;color:var(--text-light);cursor:grab;padding:0 4px 0 0;
+  flex-shrink:0;line-height:1;user-select:none;transition:color .15s;
+}
+.cat-drag-handle:hover{color:var(--text-muted)}
+.cat-section.cat-dragging{opacity:.4}
+.cat-section.cat-drop-over{outline:2px dashed var(--text-muted);outline-offset:2px;border-radius:var(--radius-sm)}
+
+/* ═══ GRID AREA ═══ */
+.grid-area{padding:14px 18px 40px;overflow-y:auto}
+.grid-area-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:400;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.grid-area-title em{font-style:italic;color:var(--text-muted)}
+
+/*
+  TIME GRID ARCHITECTURE
+  ─────────────────────
+  A CSS grid with 4 columns:
+  [LABEL-W] [STATUS-W] [4px gutter] [1fr events area]
+
+  Every 10 minutes = one row of height --ROW.
+  The label and status cells span their row.
+  The events column contains a RELATIVE container that is
+  exactly (total rows × --ROW) tall, and placed-blocks
+  are absolutely positioned inside it — so the time labels
+  are NEVER covered by events.
+*/
+.time-grid-outer{
+  display:grid;
+  /* col1=time label, col2=emoji badge, col3=events (gutter removed) */
+  grid-template-columns: var(--LABEL-W) 22px 1fr;
+  position:relative;
+}
+
+/* Major hour row label */
+.tg-label{
+  grid-column:1;
+  height:var(--ROW);
+  display:flex;align-items:flex-start;justify-content:flex-end;
+  padding-right:5px;padding-top:2px;
+  position:relative;z-index:2;
+  background:var(--bg);flex-shrink:0;
+}
+.tg-label.major .tg-label-text{
+  font-size:11px;font-weight:700;color:var(--text);
+  border-top:1px solid var(--border);
+  width:100%;text-align:right;padding-top:3px;
+}
+.tg-label.minor .tg-label-text{
+  font-size:9px;color:var(--text-light);
+}
+/* hidden minor rows: zero height so grid rows collapse */
+.tg-label.minor.row-hidden,
+.tg-badge-cell.minor.row-hidden,
+.tg-gutter.minor.row-hidden{
+  height:0!important;overflow:hidden;padding:0;border:none;
+}
+.tg-line.minor.row-hidden{display:none}
+.tg-drop.minor.row-hidden{height:0!important;overflow:hidden;pointer-events:none}
+
+/* Major label shows collapse toggle */
+.tg-label.major{
+  cursor:pointer;
+  user-select:none;
+}
+.tg-label.major:hover .tg-label-text{color:var(--text-muted)}
+.tg-collapse-icon{
+  position:absolute;left:3px;top:5px;
+  font-size:9px;color:var(--text-light);
+  line-height:1;transition:color .15s;
+}
+.tg-label.major:hover .tg-collapse-icon{color:var(--text-muted)}
+
+/* Badge / emoji column (col 2) — replaces old "status" column */
+.tg-badge-cell{
+  grid-column:2;
+  height:var(--ROW);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding-top:3px;
+  background:var(--bg);
+  z-index:2;
+}
+/* block emoji badge on the placed block itself (bottom-left) */
+.done-toggle{display:none} /* hide old slot-level emoji toggles */
+
+/* Gutter — removed, kept as zero-width placeholder */
+.tg-gutter{display:none}
+
+/* Events container — spans ALL rows, column 3 (was 4) */
+.tg-events{
+  grid-column:3;
+  grid-row:1 / -1;/* span all rows */
+  position:relative;
+  /* height set by JS = totalRows * ROW */
+}
+
+/* Horizontal grid lines inside events area */
+.tg-line{
+  position:absolute;left:0;right:0;
+  pointer-events:none;
+  border-top:1px solid var(--border);
+}
+.tg-line.minor{border-top-color:var(--bg2)}
+
+/* Drop targets — invisible rows inside .tg-events */
+.tg-drop{
+  position:absolute;left:0;right:0;
+  height:var(--ROW);
+  transition:background .1s;
+}
+.tg-drop.drag-over{background:rgba(42,37,32,.06);outline:2px dashed var(--text-muted);outline-offset:-2px;border-radius:4px}
+
+/* ═══ PLACED BLOCK ═══ */
+.placed-block{
+  position:absolute;
+  border-radius:8px;
+  padding:4px 22px 18px 8px;
+  cursor:grab;
+  user-select:none;
+  overflow:hidden;
+  transition:box-shadow .2s;
+  border:1.5px solid rgba(255,255,255,.4);
+  z-index:10;
+  display:flex;flex-direction:column;gap:2px;
+  min-width:0;
+}
+.placed-block:active{cursor:grabbing}
+.placed-block:hover{box-shadow:var(--shadow-h);z-index:20}
+.placed-block:hover .pb-remove{opacity:1}
+.placed-block:hover .resize-handle{opacity:1}
+.pb-title{font-size:11px;font-weight:600;line-height:1.3;padding-right:18px}
+.pb-meta{font-size:9px;opacity:.75;line-height:1.3}
+.pb-note{font-size:9px;opacity:.6;line-height:1.3;border-top:1px solid rgba(0,0,0,.1);margin-top:2px;padding-top:2px}
+.pb-overlap{font-size:9px;color:#C0392B;font-weight:600;margin-top:2px;background:rgba(255,255,255,.5);border-radius:3px;padding:1px 4px;display:flex;align-items:center;gap:3px;width:fit-content}
+.pb-overlap-muted{color:var(--text-light);background:transparent;font-weight:400}
+.pb-overlap-toggle{border:none;background:transparent;cursor:pointer;font-size:10px;color:inherit;padding:0;line-height:1;flex-shrink:0;opacity:.7}
+.pb-overlap-toggle:hover{opacity:1}
+.pb-remove{position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;background:rgba(0,0,0,.18);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;opacity:0;transition:opacity .2s;color:inherit}
+.pb-remove:hover{background:rgba(0,0,0,.35)}
+.pinned-badge{font-size:7px;background:rgba(0,0,0,.15);border-radius:3px;padding:1px 4px;display:inline-block;width:fit-content;margin-top:1px}
+.resize-handle{position:absolute;bottom:0;left:0;right:0;height:7px;cursor:s-resize;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.resize-handle::before{content:'';width:22px;height:2px;border-radius:2px;background:rgba(0,0,0,.25)}
+
+.week-nav{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.week-arrow{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--text-muted);flex-shrink:0}
+.week-arrow:hover{background:var(--bg2);color:var(--text)}
+.week-label{font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:60px;text-align:center}
+
+/* per-block emoji badge — always visible when set, hover to pick */
+.pb-emoji-btn{
+  display:inline-flex;align-items:center;gap:2px;
+  font-size:12px;background:transparent;border:none;cursor:pointer;
+  padding:1px 3px;line-height:1;
+  border-radius:5px;
+  opacity:0;transition:opacity .15s;
+  position:absolute;bottom:3px;left:4px;
+}
+.placed-block:hover .pb-emoji-btn{opacity:1}
+.pb-emoji-btn.has-em{opacity:1;background:rgba(0,0,0,.08)}
+.pb-emoji-clear{
+  font-size:9px;color:rgba(0,0,0,.4);
+  background:transparent;border:none;cursor:pointer;
+  padding:0;line-height:1;display:none;
+}
+.pb-emoji-btn.has-em:hover .pb-emoji-clear{display:inline}
+.add-time-row{display:flex;align-items:center;gap:7px;margin-top:10px}
+.add-time-input{padding:5px 10px;border-radius:20px;border:1.5px dashed var(--border);background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);outline:none;width:86px;transition:border-color .2s}
+.add-time-input:focus{border-color:var(--text-muted);border-style:solid}
+.add-time-btn{padding:5px 12px;border-radius:20px;border:1.5px dashed var(--border);background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text-muted);cursor:pointer;transition:all .2s}
+.add-time-btn:hover{background:var(--bg2);color:var(--text);border-style:solid}
+
+/* ═══ EMOJI ═══ */
+.emoji-panel{position:fixed;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 8px 6px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--shadow-h);width:222px}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:3px}
+.emoji-opt{width:27px;height:27px;border-radius:5px;border:none;background:transparent;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.emoji-opt:hover{background:var(--bg2)}
+.emoji-custom-row{display:flex;gap:4px;border-top:1px solid var(--border);padding-top:5px;margin-top:2px}
+.emoji-custom-input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:4px 8px;font-size:18px;font-family:'DM Sans',sans-serif;outline:none;background:var(--bg);text-align:center}
+.emoji-custom-input:focus{border-color:var(--text-muted)}
+.emoji-custom-btn{padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.emoji-custom-btn:hover{background:var(--border)}
+
+/* ═══ CALENDAR ═══ */
+.cal-wrap{padding:16px 20px 40px}
+.cal-nav-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.cal-nav-row h2{font-family:'Playfair Display',serif;font-size:17px;font-weight:400}
+.month-nav{background:none;border:1px solid var(--border);border-radius:50%;width:27px;height:27px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.month-nav:hover{background:var(--bg2)}
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.month-dayname{text-align:center;font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;padding:5px 0}
+.month-cell{background:var(--surface);border-radius:var(--radius-sm);padding:5px;border:1px solid var(--border);cursor:pointer;transition:all .2s;overflow:hidden;min-height:68px}
+.month-cell:hover{border-color:var(--text-muted);box-shadow:var(--shadow)}
+.month-cell.today{border-color:var(--text)}
+.month-cell.other-month{opacity:.3;pointer-events:none}
+.month-cell-num{font-size:11px;font-weight:600;margin-bottom:2px}
+.month-cell-today-dot{width:18px;height:18px;background:var(--text);color:var(--bg);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px}
+.month-task-pill{font-size:9px;padding:1px 4px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.year-mini{background:var(--surface);border-radius:var(--radius-sm);padding:9px;border:1px solid var(--border);cursor:pointer;transition:all .2s}
+.year-mini:hover{box-shadow:var(--shadow);border-color:var(--text-muted)}
+.year-mini-title{font-size:11px;font-weight:600;margin-bottom:4px;text-align:center}
+.year-mini-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.ymcell{height:12px;display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--text-muted);border-radius:2px;position:relative}
+.ymcell.has-tasks::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:var(--text-muted)}
+.ymcell.istoday{background:var(--text);color:var(--bg)!important;border-radius:50%}
+
+/* ═══ MODAL ═══ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(42,37,32,.36);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius);padding:24px 24px 20px;width:420px;max-width:94vw;box-shadow:0 12px 48px rgba(42,37,32,.18);animation:modalIn .2s ease;max-height:90vh;overflow-y:auto}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.modal-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:600;margin-bottom:14px}
+.form-row{margin-bottom:11px}
+.form-row label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:500;color:var(--text-muted);margin-bottom:4px}
+.form-row input,.form-row textarea,.form-row select{width:100%;padding:7px 11px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--bg);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s}
+.form-row input:focus,.form-row textarea:focus,.form-row select:focus{border-color:var(--text-muted)}
+.form-row textarea{resize:vertical;min-height:58px}
+.form-row select{cursor:pointer}
+.look-presets{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.look-preset{padding:3px 9px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;transition:all .15s;color:var(--text-muted)}
+.look-preset:hover{background:var(--border);color:var(--text)}
+.modal-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.detail-chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;background:var(--bg2);color:var(--text-muted);margin:2px 2px 2px 0}
+.detail-section{margin-bottom:11px}
+.detail-section-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:500;margin-bottom:4px}
+.detail-note{background:var(--bg2);border-radius:var(--radius-sm);padding:8px 11px;font-size:13px;color:var(--text-muted);line-height:1.5}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+@media(max-width:700px){
+  header{padding:9px 11px;gap:8px}.balance-wrap{padding:8px 11px 0}
+  .layout{grid-template-columns:1fr}.library{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--border)}
+  .grid-area,.cal-wrap{padding:11px 11px 40px}.year-grid{grid-template-columns:repeat(2,1fr)}.month-cell{min-height:54px}
+}
+.dragging{opacity:.35!important}
+</style>
+<!-- Firebase -->
+<script type="module">
+// ── Firebase config ──────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD4SzhoiTMT7Y47CsYwcQ81Cmg73MVneaw",
+  authDomain: "my-planner-8c93d.firebaseapp.com",
+  databaseURL: "https://my-planner-8c93d-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "my-planner-8c93d",
+  storageBucket: "my-planner-8c93d.firebasestorage.app",
+  messagingSenderId: "564875035967",
+  appId: "1:564875035967:web:c614e2b90563c03472ff8a"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db    = getDatabase(fbApp);
+
+// ── Save to Firebase (debounced 800ms) ──────────────────────
+let _fbSaveTimer = null;
+window.fbSave = function(){
+  clearTimeout(_fbSaveTimer);
+  _fbSaveTimer = setTimeout(()=>{
+    const payload = {
+      categories: data.categories,
+      blocks:     data.blocks,
+      schedule:   data.schedule,
+      slotStatus: data.slotStatus,
+      blockEmoji: data.blockEmoji,
+      weekOffset: data.weekOffset,
+      savedAt:    Date.now()
+    };
+    set(ref(db,'planner'), payload)
+      .then(()=>showSyncStatus('☁️ Збережено'))
+      .catch(e=>showSyncStatus('⚠️ Помилка: '+e.message));
+  }, 800);
+};
+
+// ── Load from Firebase once + listen for changes ─────────────
+window.fbListen = function(){
+  onValue(ref(db,'planner'), snapshot => {
+    const saved = snapshot.val();
+    if(!saved) { showSyncStatus('🆕 Новий планер'); window._fbReady=true; renderAll(); return; }
+    if(saved.categories) data.categories = saved.categories;
+    if(saved.blocks)     data.blocks     = saved.blocks;
+    if(saved.schedule)   data.schedule   = saved.schedule;
+    if(saved.slotStatus) data.slotStatus = saved.slotStatus;
+    if(saved.blockEmoji) data.blockEmoji = saved.blockEmoji;
+    if(saved.weekOffset !== undefined) data.weekOffset = saved.weekOffset;
+    showSyncStatus('✅ Синхронізовано');
+    window._fbReady = true;
+    renderAll();
+  });
+};
+
+function renderAll(){
+  renderDayTabs(); renderLibrary(); renderGrid(); renderBalance();
+}
+
+// Kick off listening when page loads
+document.addEventListener('DOMContentLoaded', ()=>{
+  window.fbListen();
+});
+</script>
+</head>
+<body>
+
+<header>
+  <h1><span>День</span> <em>&amp;</em> <span>Розклад</span></h1>
+  <div class="view-toggle">
+    <button class="view-btn active" id="vbDay"   onclick="setView('day')">День</button>
+    <button class="view-btn"        id="vbMonth" onclick="setView('month')">Місяць</button>
+    <button class="view-btn"        id="vbYear"  onclick="setView('year')">Рік</button>
+  </div>
+  <div class="week-nav" id="weekNav">
+    <button class="week-arrow" onclick="shiftWeek(-1)" title="Попередній тиждень">‹</button>
+    <div class="day-tabs" id="dayTabs"></div>
+    <button class="week-arrow" onclick="shiftWeek(1)" title="Наступний тиждень">›</button>
+  </div>
+  <div class="header-actions">
+    <span id="syncStatus" style="font-size:11px;color:var(--text-muted);white-space:nowrap;transition:opacity .3s"></span>
+    <button class="btn" onclick="openCatManager()">⚙ Категорії</button>
+    <button class="btn danger" id="clearDayBtn" onclick="clearDay()">Очистити день</button>
+  </div>
+</header>
+
+<div class="balance-wrap" id="balanceWrap">
+  <div class="balance-label">Баланс дня</div>
+  <div class="balance-bar" id="balanceBar"></div>
+  <div class="balance-legend" id="balanceLegend"></div>
+  <div class="balance-warning" id="balanceWarning">⚠ Одна категорія займає більше 60% — спробуй додати різноманітності</div>
+</div>
+
+<div class="layout" id="mainLayout">
+  <aside class="library">
+    <div class="library-title">Бібліотека справ</div>
+    <div id="libraryContent"></div>
+  </aside>
+  <main class="grid-area" id="gridArea">
+    <div class="grid-area-title">
+      <span id="gridDayName">Понеділок</span><em>·</em>
+      <em id="gridDayHint" style="font-size:13px"></em>
+    </div>
+    <!-- The time grid lives here -->
+    <div class="time-grid-outer" id="timeGrid"></div>
+  </main>
+</div>
+
+<div id="calView" style="display:none"><div class="cal-wrap" id="calWrap"></div></div>
+
+<!-- Block modal -->
+<div class="modal-overlay" id="blockModal">
+  <div class="modal">
+    <div class="modal-title" id="blockModalTitle">Нова справа</div>
+    <div class="form-row"><label>Назва</label><input type="text" id="fName" placeholder="Назва справи"></div>
+    <div class="form-row"><label>Категорія</label><select id="fCat"></select></div>
+    <div class="form-row"><label>Тривалість</label><input type="text" id="fDur" placeholder="30 хв / 1.5 год / 2 год 20 хв"></div>
+    <div class="form-row"><label>Локація</label><input type="text" id="fLoc" placeholder="вдома, офіс, парк..."></div>
+    <div class="form-row">
+      <label>Зовнішній вигляд</label>
+      <input type="text" id="fLook" placeholder="Напиши або вибери нижче...">
+      <div class="look-presets">
+        <button class="look-preset" onclick="setLook('Повний образ')">Повний образ</button>
+        <button class="look-preset" onclick="setLook('Casual')">Casual</button>
+        <button class="look-preset" onclick="setLook('Не потрібен')">Не потрібен</button>
+        <button class="look-preset" onclick="setLook('Спортивний')">Спортивний</button>
+        <button class="look-preset" onclick="setLook('Домашній')">Домашній</button>
+        <button class="look-preset" onclick="setLook('Діловий')">Діловий</button>
+      </div>
+    </div>
+    <div class="form-row"><label>Нотатка</label><textarea id="fNote" placeholder="Будь-які нотатки..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('blockModal')">Скасувати</button>
+      <button class="btn" id="blockDelBtn" style="display:none;color:#C0392B;border-color:#E8A0A0" onclick="deleteEditingBlock()">Видалити</button>
+      <button class="btn primary" onclick="saveBlock()">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div class="modal-title" id="detailTitle" style="margin-bottom:0"></div>
+      <div style="display:flex;gap:5px;margin-top:2px">
+        <button class="icon-btn" onclick="editFromDetail()">✏️</button>
+        <button class="icon-btn" style="font-size:13px" onclick="closeModal('detailModal')">×</button>
+      </div>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Category manager -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal" style="width:460px">
+    <div class="modal-title">Управління категоріями</div>
+    <div id="catManagerBody"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="addCategoryPrompt()">+ Додати категорію</button>
+      <button class="btn primary" onclick="closeModal('catModal')">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div id="emojiPanel" class="emoji-panel" style="display:none"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════
+const DAYS     = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+const DAY_FULL = ['Понеділок','Вівторок','Середа','Четвер','П\'ятниця','Субота','Неділя'];
+const MONTH_NAMES = [
+  'Січень (Январь)','Лютий (Февраль)','Березень (Март)','Квітень (Апрель)',
+  'Травень (Май)','Червень (Июнь)','Липень (Июль)','Серпень (Август)',
+  'Вересень (Сентябрь)','Жовтень (Октябрь)','Листопад (Ноябрь)','Грудень (Декабрь)'
+];
+const EMOJIS = ['✅','⭐','💪','🔥','📚','🎯','💆','🛍','🍵','🧘','✨','💅','🎨','🏃','🌿','💤','📝','🎶','🍽','🤍','☕','🌸','💊','🚿','🧴','👗','🏋','🧹','🛒','📞'];
+
+const ROW_PX = 34;       // px per 10-min slot
+const MINS_STEP = 10;    // granularity
+
+// Generate all slots 00:00–23:50
+const ALL_SLOTS = [];
+for(let h=0;h<24;h++) for(let m=0;m<60;m+=10) ALL_SLOTS.push(pad(h)+':'+pad(m));
+const TOTAL_ROWS = ALL_SLOTS.length; // 144
+
+function pad(n){return String(n).padStart(2,'0')}
+function isMajor(t){return t.endsWith(':00')}
+function slotIdx(t){const[h,m]=t.split(':').map(Number);return h*6+(m/10)}
+function tMins(t){const[h,m]=t.split(':').map(Number);return h*60+m}
+function minsToSlot(m){return pad(Math.floor(m/60))+':'+pad(m%60)}
+
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+let data = {
+  categories:[
+    {id:'cat1',name:'Категорія 1',color:'#F7C5D0',darkColor:'#E8849A',textColor:'#8B3A52'},
+    {id:'cat2',name:'Категорія 2',color:'#C5E8C8',darkColor:'#72C278',textColor:'#2D6B33'},
+    {id:'cat3',name:'Категорія 3',color:'#C0DCF0',darkColor:'#6EB0DA',textColor:'#1A5B84'},
+    {id:'cat4',name:'Категорія 4',color:'#DDD0F0',darkColor:'#A87EDC',textColor:'#5A2E8A'},
+    {id:'cat5',name:'Категорія 5',color:'#F5E8A8',darkColor:'#E0C440',textColor:'#7A6010'},
+  ],
+  blocks:[
+    {id:'b1', catId:'cat1',name:'Ранковий ритуал',  dur:'20 хв',loc:'вдома',        look:'Не потрібен',    note:'Вмивання, догляд за шкірою'},
+    {id:'b2', catId:'cat1',name:'Манікюр/педикюр',  dur:'1.5 год', loc:'салон',       look:'Casual',      note:'Записатись заздалегідь'},
+    {id:'b3', catId:'cat1',name:'Укладка волосся',     dur:'40 хв',loc:'вдома',        look:'Повний образ',note:'Для особливого приводу'},
+    {id:'b4', catId:'cat2',name:'Ранкова зарядка', dur:'30 хв',loc:'вдома',        look:'Не потрібен',    note:'Легка розтяжка + кардіо'},
+    {id:'b5', catId:'cat2',name:'Прогулянка',          dur:'1 год',   loc:'парк',        look:'Casual',      note:'Свіже повітря — обов\'язково'},
+    {id:'b6', catId:'cat2',name:'Спортзал',          dur:'1.5 год', loc:'фітнес-клуб', look:'Спортивний',  note:'Взяти форму та воду'},
+    {id:'b7', catId:'cat3',name:'Робоча сесія',   dur:'2 год',   loc:'офіс',        look:'Повний образ',note:'Фокус-режим, телефон прибрати'},
+    {id:'b8', catId:'cat3',name:'Зустріч/дзвінок',    dur:'1 год',   loc:'зум / офіс',  look:'Повний образ',note:'Підготувати питання'},
+    {id:'b9', catId:'cat3',name:'Розбір пошти',      dur:'30 хв',loc:'скрізь',       look:'Casual',      note:'Не частіше 2 разів на день'},
+    {id:'b10',catId:'cat4',name:'Читання книги',      dur:'45 хв',loc:'вдома',        look:'Домашній',    note:'Відкласти гаджети'},
+    {id:'b11',catId:'cat4',name:'Серіал / кіно',     dur:'1.5 год', loc:'вдома',        look:'Домашній',    note:'Попкорн вітається'},
+    {id:'b12',catId:'cat4',name:'Медитація',         dur:'15 хв',loc:'вдома',        look:'Не потрібен',    note:'Застосунок Insight Timer'},
+    {id:'b13',catId:'cat5',name:'Зустріч з друзями',dur:'2–3 год', loc:'кафе',        look:'Casual',      note:'Зарезервувати столик'},
+    {id:'b14',catId:'cat5',name:'Сімейна вечеря',     dur:'1.5 год', loc:'вдома',        look:'Casual',      note:'Купити продукти заздалегідь'},
+    {id:'b15',catId:'cat5',name:'Шопінг',           dur:'2 год',   loc:'ТЦ',          look:'Повний образ',note:'Список — щоб не зайвого'},
+  ],
+  schedule:   {}, // "YYYY-MM-DD" : { "HH:MM": [{id,blockId,pinned,durationMins}] }
+  slotStatus: {}, // "YYYY-MM-DD|HH:MM" -> emoji
+  blockEmoji: {}, // "instanceId" -> emoji string
+  weekOffset: 0,
+};
+
+// date-key helpers
+function dateKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayKey(){ return dateKey(new Date()); }
+function scheduleFor(dk){ if(!data.schedule[dk])data.schedule[dk]={}; return data.schedule[dk]; }
+
+// currentDay is a "YYYY-MM-DD" date string (not a weekday index)
+let currentDay=todayKey(),currentView='day',calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
+let editingBlockId=null,detailOpenBlock=null,dragInfo=null,emojiKey=null;
+// Hours 00:00–07:00 start collapsed (their sub-rows hidden)
+const collapsedHours=new Set(['00:00','01:00','02:00','03:00','04:00','05:00','06:00','07:00']);
+let resizing=null;// {instanceId,slot,startY,startMins}
+// instanceIds where user has muted the overlap warning
+const overlapMuted=new Set();
+function toggleOverlapMute(instanceId,e){
+  e.stopPropagation();
+  if(overlapMuted.has(instanceId))overlapMuted.delete(instanceId);
+  else overlapMuted.add(instanceId);
+  renderGrid();
+}
+
+// ══════════════════════════════════════════════════════
+// DATE HELPERS
+// ══════════════════════════════════════════════════════
+function getWeekStart(){
+  const now=new Date(),day=now.getDay(),diff=(day===0?-6:1-day);
+  const m=new Date(now);m.setDate(now.getDate()+diff+data.weekOffset*7);return m;
+}
+function getDayDate(i){const m=getWeekStart(),d=new Date(m);d.setDate(m.getDate()+i);return d;}
+function formatDate(d){return d.getDate()+' '+['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'][d.getMonth()];}
+
+// ══════════════════════════════════════════════════════
+// DURATION
+// ══════════════════════════════════════════════════════
+function parseDuration(str){
+  if(!str)return 60;
+  str=str.toLowerCase().trim();
+  let mins=0;
+  const hm=str.match(/(\d+(?:[.,]\d+)?)\s*(?:год|ч|h|час)/);
+  const mm=str.match(/(\d+)\s*(?:хв|мін|min|м\b)/);
+  if(hm)mins+=parseFloat(hm[1].replace(',','.'))*60;
+  if(mm)mins+=parseInt(mm[1]);
+  if(!hm&&!mm){const n=parseFloat(str);if(!isNaN(n))mins=n;}
+  return Math.max(10,Math.round(mins/10)*10);
+}
+function fmtDur(mins){
+  if(mins<60)return mins+' хв';
+  const h=Math.floor(mins/60),m=mins%60;
+  return m?`${h} год ${m} хв`:`${h} год`;
+}
+
+// ══════════════════════════════════════════════════════
+// OVERLAP DETECTION
+// Returns array of {a: entry, b: entry} pairs that overlap in time
+// ══════════════════════════════════════════════════════
+function findOverlaps(dayIdx){
+  // Build flat list: {entry, startMins, endMins, slot}
+  const items=[];
+  Object.entries(scheduleFor(dayIdx)).forEach(([slot,entries])=>{
+    const startM=tMins(slot);
+    entries.forEach(en=>{
+      items.push({entry:en,slot,startM,endM:startM+en.durationMins});
+    });
+  });
+  // Find pairs that overlap: a.startM < b.endM && b.startM < a.endM
+  const pairs=new Set();
+  for(let i=0;i<items.length;i++){
+    for(let j=i+1;j<items.length;j++){
+      const a=items[i],b=items[j];
+      if(a.startM<b.endM && b.startM<a.endM){
+        pairs.add(a.entry.id);pairs.add(b.entry.id);
+      }
+    }
+  }
+  return pairs; // set of instance IDs that overlap with something
+}
+
+// ══════════════════════════════════════════════════════
+// SYNC STATUS
+// ══════════════════════════════════════════════════════
+let _syncTimer=null;
+function showSyncStatus(msg){
+  const el=document.getElementById('syncStatus');
+  if(!el)return;
+  el.textContent=msg;
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(()=>{el.textContent='';},3000);
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+function init(){
+  // Firebase listener (defined in module script) will call renderAll() once loaded.
+  // Render immediately with default data as fallback while loading:
+  showSyncStatus('⏳ Завантаження...');
+  renderDayTabs();renderLibrary();renderGrid();renderBalance();
+  document.addEventListener('click',e=>{
+    const p=document.getElementById('emojiPanel');
+    if(p.style.display!=='none'&&!p.contains(e.target)&&!e.target.classList.contains('done-toggle'))p.style.display='none';
+  });
+  document.addEventListener('mousemove',onResizeMove);
+  document.addEventListener('mouseup',onResizeEnd);
+}
+
+// ══════════════════════════════════════════════════════
+// VIEW
+// ══════════════════════════════════════════════════════
+function setView(v){
+  currentView=v;
+  ['Day','Month','Year'].forEach(n=>document.getElementById('vb'+n).classList.toggle('active',n.toLowerCase()===v));
+  const isDay=v==='day';
+  document.getElementById('mainLayout').style.display =isDay?'grid':'none';
+  document.getElementById('balanceWrap').style.display=isDay?'block':'none';
+  document.getElementById('weekNav').style.display    =isDay?'flex':'none';
+  document.getElementById('clearDayBtn').style.display=isDay?'':'none';
+  document.getElementById('calView').style.display    =isDay?'none':'block';
+  if(v==='month')renderMonthView();
+  if(v==='year') renderYearView();
+}
+
+// ══════════════════════════════════════════════════════
+// DAY TABS
+// ══════════════════════════════════════════════════════
+function renderDayTabs(){
+  document.getElementById('dayTabs').innerHTML=DAYS.map((d,i)=>{
+    const date=getDayDate(i),dk=dateKey(date),today=new Date(),isToday=date.toDateString()===today.toDateString();
+    return `<button class="day-tab${dk===currentDay?' active':''}" onclick="switchDayByKey('${dk}')">
+      <span class="day-tab-name">${d}</span>
+      <span class="day-tab-date">${formatDate(date)}</span>
+    </button>`;
+  }).join('');
+}
+function switchDay(idx){const d=getDayDate(idx);currentDay=dateKey(d);renderDayTabs();renderGrid();renderBalance();}
+function switchDayByKey(dk){currentDay=dk;renderDayTabs();renderGrid();renderBalance();}
+function shiftWeek(delta){
+  data.weekOffset+=delta;
+  // Keep currentDay on the same weekday in the new week
+  const cd=new Date(currentDay+'T12:00:00');
+  const dow=(cd.getDay()+6)%7; // 0=Mon
+  currentDay=dateKey(getDayDate(dow));
+  renderDayTabs();renderGrid();renderBalance();
+}
+function countDayBlocks(dk){return Object.values(scheduleFor(dk)).reduce((n,a)=>n+a.length,0);}
+
+// ══════════════════════════════════════════════════════
+// LIBRARY
+// ══════════════════════════════════════════════════════
+let catDragIdx = null; // index of category being dragged
+
+function renderLibrary(){
+  const container = document.getElementById('libraryContent');
+  container.innerHTML='';
+
+  data.categories.forEach((cat, idx)=>{
+    const blocks=data.blocks.filter(b=>b.catId===cat.id);
+
+    const section = document.createElement('div');
+    section.className='cat-section';
+    section.dataset.catIdx = idx;
+
+    section.innerHTML=`
+      <div class="cat-header">
+        <div class="cat-drag-handle" title="Перетягни для зміни порядку">⠿</div>
+        <div class="cat-name"><span class="cat-dot" style="background:${cat.darkColor}"></span>${cat.name}</div>
+        <div class="cat-actions"><button class="icon-btn" onclick="openCatManager()">✏</button></div>
+      </div>
+      <div class="cat-blocks-list">${blocks.map(b=>renderLibBlock(b,cat)).join('')}</div>
+      <button class="btn" style="width:100%;margin-top:4px;font-size:11px;padding:4px" onclick="openAddBlock('${cat.id}')">+ додати</button>
+    `;
+
+    // Category drag-to-reorder
+    section.draggable = true;
+    section.addEventListener('dragstart', e => {
+      // Only start cat drag if target is the handle
+      if (!e.target.classList.contains('cat-drag-handle')) { e.stopPropagation(); return; }
+      catDragIdx = idx;
+      section.classList.add('cat-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain','cat');
+    });
+    section.addEventListener('dragend', () => {
+      section.classList.remove('cat-dragging');
+      catDragIdx = null;
+      document.querySelectorAll('.cat-section').forEach(s=>s.classList.remove('cat-drop-over'));
+    });
+    section.addEventListener('dragover', e => {
+      if (catDragIdx === null) return; // it's a block drag, ignore
+      e.preventDefault();
+      section.classList.add('cat-drop-over');
+    });
+    section.addEventListener('dragleave', () => section.classList.remove('cat-drop-over'));
+    section.addEventListener('drop', e => {
+      if (catDragIdx === null) return;
+      e.preventDefault(); e.stopPropagation();
+      section.classList.remove('cat-drop-over');
+      const targetIdx = parseInt(section.dataset.catIdx);
+      if (catDragIdx !== targetIdx) {
+        const moved = data.categories.splice(catDragIdx, 1)[0];
+        data.categories.splice(targetIdx, 0, moved);
+        renderLibrary();
+      }
+      catDragIdx = null;
+    });
+
+    container.appendChild(section);
+  });
+
+  attachLibDrag();
+}
+function renderLibBlock(b,cat){
+  return `<div class="block-card" id="lb_${b.id}" draggable="true"
+    style="background:${cat.color};border-color:${cat.color}" onclick="openDetail('${b.id}')">
+    <div class="block-card-actions">
+      <button class="icon-btn" onclick="event.stopPropagation();openEditBlock('${b.id}')">✏</button>
+      <button class="icon-btn" onclick="event.stopPropagation();delBlock('${b.id}')">×</button>
+    </div>
+    <div class="block-title" style="color:${cat.textColor}">${b.name}</div>
+    <div class="block-meta" style="color:${cat.textColor}">
+      ${b.dur?`<span>⏱ ${b.dur}</span>`:''}${b.loc?`<span>📍 ${b.loc}</span>`:''}
+    </div>
+    ${b.note?`<div class="block-note-snip" style="color:${cat.textColor}">${b.note}</div>`:''}
+  </div>`;
+}
+function attachLibDrag(){
+  data.blocks.forEach(b=>{
+    const el=document.getElementById('lb_'+b.id);if(!el)return;
+    el.addEventListener('dragstart',e=>{
+      e.stopPropagation(); // don't bubble to cat-section draggable
+      dragInfo={blockId:b.id,durationMins:parseDuration(b.dur),fromSlot:null,instanceId:null};
+      el.classList.add('dragging');e.dataTransfer.effectAllowed='copy';
+    });
+    el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// GRID RENDER
+// ══════════════════════════════════════════════════════
+
+// Helper: compute pixel top for each slot index,
+// accounting for collapsed hours (minor rows = 0px when collapsed)
+function computeSlotTops(){
+  const tops=[]; // tops[ri] = pixel y from top of events container
+  let y=0;
+  ALL_SLOTS.forEach((slot,ri)=>{
+    tops.push(y);
+    const major=isMajor(slot);
+    if(major){
+      y+=ROW_PX; // major row always full height
+    } else {
+      const parentH=slot.split(':')[0].padStart(2,'0')+':00';
+      y+=collapsedHours.has(parentH)?0:ROW_PX;
+    }
+  });
+  tops.push(y); // total height at index TOTAL_ROWS
+  return tops;
+}
+
+function renderGrid(){
+  const grid=document.getElementById('timeGrid');
+  grid.innerHTML='';
+
+  const overlapSet = findOverlaps(currentDay);
+  const slotTops = computeSlotTops();
+  const totalH = slotTops[TOTAL_ROWS]; // actual pixel height of events area
+
+  // Build grid-template-rows string for left columns
+  // Each slot gets a row whose height = actual pixel height (0 for hidden minor)
+  const rowHeights = ALL_SLOTS.map((slot,ri)=>{
+    const major=isMajor(slot);
+    if(major) return ROW_PX+'px';
+    const parentH=slot.split(':')[0].padStart(2,'0')+':00';
+    return collapsedHours.has(parentH)?'0px':ROW_PX+'px';
+  });
+  grid.style.gridTemplateRows = rowHeights.join(' ');
+
+  // ── LEFT COLUMNS: label + badge col + gutter
+  ALL_SLOTS.forEach((slot,ri)=>{
+    const major=isMajor(slot);
+    const parentH=slot.split(':')[0].padStart(2,'0')+':00';
+    const hidden=!major&&collapsedHours.has(parentH);
+
+    // ── LABEL
+    const lbl=document.createElement('div');
+    lbl.className='tg-label '+(major?'major':'minor')+(hidden?' row-hidden':'');
+    lbl.style.cssText=`grid-column:1;grid-row:${ri+1}`;
+
+    if(major){
+      const icon=document.createElement('span');
+      icon.className='tg-collapse-icon';
+      icon.textContent=collapsedHours.has(slot)?'+':'−';
+      lbl.appendChild(icon);
+      lbl.addEventListener('click',()=>{
+        if(collapsedHours.has(slot))collapsedHours.delete(slot);
+        else collapsedHours.add(slot);
+        renderGrid();
+      });
+    }
+    const lt=document.createElement('span');
+    lt.className='tg-label-text';
+    lt.textContent=slot;
+    lbl.appendChild(lt);
+    grid.appendChild(lbl);
+
+    // ── BADGE CELL (col 2)
+    const sc=document.createElement('div');
+    sc.className='tg-badge-cell'+(major?'':' minor')+(hidden?' row-hidden':'');
+    sc.style.cssText=`grid-column:2;grid-row:${ri+1}`;
+    grid.appendChild(sc);
+
+    // ── GUTTER (col 3)
+    const gu=document.createElement('div');
+    gu.className='tg-gutter'+(major?'':' minor')+(hidden?' row-hidden':'');
+    gu.style.cssText=`grid-column:3;grid-row:${ri+1}`;
+    grid.appendChild(gu);
+  });
+
+  // ── EVENTS CONTAINER spans all grid rows, col 4
+  const eventsEl=document.createElement('div');
+  eventsEl.className='tg-events';
+  eventsEl.style.cssText=`grid-column:3;grid-row:1/${TOTAL_ROWS+1};height:${totalH}px`;
+
+  // ── GRID LINES (horizontal, absolute inside events)
+  ALL_SLOTS.forEach((slot,ri)=>{
+    const maj=isMajor(slot);
+    const parentH=slot.split(':')[0].padStart(2,'0')+':00';
+    const hidden=!maj&&collapsedHours.has(parentH);
+    if(hidden) return; // skip zero-height rows entirely
+    const line=document.createElement('div');
+    line.className='tg-line'+(maj?'':' minor');
+    line.style.top=slotTops[ri]+'px';
+    eventsEl.appendChild(line);
+  });
+
+  // ── DROP TARGETS (absolute inside events)
+  // Major hour: always full ROW_PX height, always droppable
+  // Minor slot: visible = ROW_PX, collapsed = 0 (hidden, no drops)
+  ALL_SLOTS.forEach((slot,ri)=>{
+    const maj=isMajor(slot);
+    const parentH=slot.split(':')[0].padStart(2,'0')+':00';
+    const hidden=!maj&&collapsedHours.has(parentH);
+    if(hidden) return; // no drop target for collapsed sub-rows
+
+    const drop=document.createElement('div');
+    drop.className='tg-drop';
+    drop.style.top=slotTops[ri]+'px';
+    drop.style.height=ROW_PX+'px';
+    drop.dataset.slot=slot;
+    drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag-over');});
+    drop.addEventListener('dragleave',()=>drop.classList.remove('drag-over'));
+    drop.addEventListener('drop',e=>{
+      e.preventDefault();drop.classList.remove('drag-over');
+      if(!dragInfo)return;
+      const{blockId,durationMins,fromSlot,instanceId}=dragInfo;
+      const sd=scheduleFor(currentDay);
+      if(fromSlot&&fromSlot!==slot){
+        if(sd[fromSlot])sd[fromSlot]=sd[fromSlot].filter(en=>en.id!==instanceId);
+        if(sd[fromSlot]&&sd[fromSlot].length===0)delete sd[fromSlot];
+      }
+      if(!sd[slot])sd[slot]=[];
+      if(instanceId){
+        if(fromSlot===slot){/* same slot, no-op */}
+        else sd[slot].push({id:instanceId,blockId,pinned:false,durationMins});
+      } else {
+        sd[slot].push({id:'p'+Date.now()+Math.random(),blockId,pinned:false,durationMins});
+      }
+      dragInfo=null;renderGrid();renderBalance();
+    });
+    eventsEl.appendChild(drop);
+  });
+
+  // ── PLACED BLOCKS with proper side-by-side column layout
+  const placed=scheduleFor(currentDay);
+  const allItems=[];
+  Object.entries(placed).forEach(([slot,entries])=>{
+    const startM=tMins(slot);
+    entries.forEach(entry=>{
+      const b=data.blocks.find(x=>x.id===entry.blockId);if(!b)return;
+      const cat=data.categories.find(c=>c.id===b.catId)||{};
+      allItems.push({entry,slot,startM,endM:startM+entry.durationMins,b,cat});
+    });
+  });
+
+  allItems.sort((a,b)=>a.startM!==b.startM?a.startM-b.startM:a.entry.id.localeCompare(b.entry.id));
+
+  // Sweep-line column assignment
+  const colAssign={};
+  let i=0;
+  while(i<allItems.length){
+    const group=[allItems[i]];
+    let groupEnd=allItems[i].endM;
+    let j=i+1;
+    while(j<allItems.length&&allItems[j].startM<groupEnd){
+      group.push(allItems[j]);
+      if(allItems[j].endM>groupEnd)groupEnd=allItems[j].endM;
+      j++;
+    }
+    const cols=[];
+    group.forEach(item=>{
+      let p=false;
+      for(let c2=0;c2<cols.length;c2++){
+        if(cols[c2]<=item.startM){cols[c2]=item.endM;colAssign[item.entry.id]={col:c2,totalCols:0};p=true;break;}
+      }
+      if(!p){colAssign[item.entry.id]={col:cols.length,totalCols:0};cols.push(item.endM);}
+    });
+    const total=cols.length;
+    group.forEach(item=>{if(colAssign[item.entry.id])colAssign[item.entry.id].totalCols=total;});
+    i=j;
+  }
+
+  // Render each placed block using computed pixel tops
+  allItems.forEach(({entry,slot,startM,b,cat})=>{
+    const ri=slotIdx(slot);
+    if(ri<0||ri>=TOTAL_ROWS)return;
+
+    // Top: use computed slot top (accounts for collapsed rows)
+    const topPx=slotTops[ri];
+
+    // Height: sum pixel heights of spanned rows
+    const rowSpan=Math.max(1,Math.round(entry.durationMins/MINS_STEP));
+    const endRi=Math.min(ri+rowSpan, TOTAL_ROWS);
+    const heightPx=slotTops[endRi]-slotTops[ri] || ROW_PX; // fallback to 1 row
+
+    const isOverlap=overlapSet.has(entry.id);
+    const assign=colAssign[entry.id]||{col:0,totalCols:1};
+    const totalCols=Math.max(1,assign.totalCols);
+    const colW=100/totalCols;
+    const leftPct=assign.col*colW;
+
+    const el=document.createElement('div');
+    el.className='placed-block';
+    el.draggable=true;
+    el.dataset.instanceId=entry.id;
+    el.dataset.slot=slot;
+    el.style.cssText=`top:${topPx}px;height:${Math.max(heightPx,ROW_PX)}px;`
+      +`left:calc(${leftPct}% + 2px);width:calc(${colW}% - 4px);`
+      +`background:${cat.color};color:${cat.textColor};`
+      +(isOverlap&&!overlapMuted.has(entry.id)?'border:2px solid rgba(192,57,43,.55);':'');
+
+    const durLabel=fmtDur(entry.durationMins);
+    const noteHtml=b.note&&heightPx>55?`<div class="pb-note">📝 ${b.note}</div>`:'';
+    const blockEm=data.blockEmoji[entry.id]||'';
+    const overlapHtml=isOverlap
+      ? `<div class="pb-overlap${overlapMuted.has(entry.id)?' pb-overlap-muted':''}">
+           ${overlapMuted.has(entry.id)?'':'⚡ Перетин'}
+           <button class="pb-overlap-toggle" onclick="toggleOverlapMute('${entry.id}',event)" title="${overlapMuted.has(entry.id)?'Показати перетин':'Приховати позначку'}">
+             ${overlapMuted.has(entry.id)?'＋':'×'}
+           </button>
+         </div>`
+      : '';
+
+    el.innerHTML=`
+      <div class="pb-title">${b.name}</div>
+      <div class="pb-meta">⏱ ${durLabel}${b.loc?' · 📍'+b.loc:''}</div>
+      ${noteHtml}${overlapHtml}
+      ${entry.pinned?`<span class="pinned-badge">📌 pin</span>`:''}
+      <button class="pb-remove" onclick="event.stopPropagation();removeEntry('${slot}','${entry.id}')">×</button>
+      <button class="pb-emoji-btn${blockEm?' has-em':''}" onclick="event.stopPropagation();openBlockEmoji(event,'${entry.id}')" title="Вибрати смайл">
+        <span class="pb-emoji-face">${blockEm||'☺'}</span>
+        ${blockEm?`<span class="pb-emoji-clear" onclick="event.stopPropagation();clearBlockEmoji('${entry.id}')">✕</span>`:''}
+      </button>
+      <div class="resize-handle"></div>
+    `;
+
+    el.addEventListener('dragstart',e2=>{
+      e2.stopPropagation();
+      dragInfo={blockId:b.id,durationMins:entry.durationMins,fromSlot:slot,instanceId:entry.id};
+      el.classList.add('dragging');e2.dataTransfer.effectAllowed='move';
+    });
+    el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+    el.addEventListener('click',e2=>{
+      if(e2.target.classList.contains('pb-remove')||e2.target.classList.contains('resize-handle'))return;
+      openDetail(b.id);
+    });
+    const rh=el.querySelector('.resize-handle');
+    rh.addEventListener('mousedown',e2=>{
+      e2.stopPropagation();e2.preventDefault();
+      resizing={instanceId:entry.id,slot,startY:e2.clientY,startMins:entry.durationMins};
+    });
+
+    eventsEl.appendChild(el);
+  });
+
+  grid.appendChild(eventsEl);
+
+  // Update title
+  const cdDate=new Date(currentDay+'T12:00:00');
+  document.getElementById('gridDayName').textContent=DAY_FULL[(cdDate.getDay()+6)%7]+' · '+formatDate(cdDate);
+  const n=countDayBlocks(currentDay);
+  document.getElementById('gridDayHint').textContent=n?`${n} справ`:'порожньо';
+}
+
+// ══════════════════════════════════════════════════════
+// RESIZE
+// ══════════════════════════════════════════════════════
+function onResizeMove(e){
+  if(!resizing)return;
+  const dy=e.clientY-resizing.startY;
+  const dMins=Math.round(dy/ROW_PX)*MINS_STEP;
+  const newMins=Math.max(10,resizing.startMins+dMins);
+  const entries=(scheduleFor(currentDay)[resizing.slot])||[];
+  const entry=entries.find(en=>en.id===resizing.instanceId);
+  if(entry){
+    entry.durationMins=newMins;
+    // Recompute height using slotTops so resize respects collapsed rows
+    const slotTops=computeSlotTops();
+    const ri=slotIdx(resizing.slot);
+    const rowSpan=Math.max(1,Math.round(newMins/MINS_STEP));
+    const endRi=Math.min(ri+rowSpan, TOTAL_ROWS);
+    const newH=Math.max(ROW_PX, slotTops[endRi]-slotTops[ri]);
+    const el=document.querySelector(`.placed-block[data-instance="${resizing.instanceId}"]`);
+    if(el){
+      el.style.height=newH+'px';
+      const m=el.querySelector('.pb-meta');
+      if(m){const b2=data.blocks.find(x=>x.id===entry.blockId);m.textContent='⏱ '+fmtDur(newMins)+(b2?.loc?' · 📍'+b2.loc:'');}
+    }
+  }
+}
+function onResizeEnd(){
+  if(!resizing)return;resizing=null;renderGrid();renderBalance();
+}
+
+function removeEntry(slot,instanceId){
+  const s=scheduleFor(currentDay);
+  if(s[slot]){s[slot]=s[slot].filter(en=>en.id!==instanceId);if(!s[slot].length)delete s[slot];}
+  renderGrid();renderBalance();
+}
+function clearDay(){
+  if(!confirm('Очистити розклад на цей день?'))return;
+  data.schedule[currentDay]={};renderGrid();renderBalance();
+}
+
+function scrollToTime(){
+  const inp=document.getElementById('customTimeInput');
+  const raw=inp.value.trim().replace('.',':');
+  const m=raw.match(/^(\d{1,2}):?(\d{0,2})$/);
+  if(!m){inp.style.borderColor='#E8A0A0';setTimeout(()=>inp.style.borderColor='',1300);return;}
+  const h=parseInt(m[1])||0,mn=parseInt(m[2]||'0')||0;
+  if(h>23||mn>59){inp.style.borderColor='#E8A0A0';setTimeout(()=>inp.style.borderColor='',1300);return;}
+  const rounded=Math.round(mn/10)*10>=60?50:Math.round(mn/10)*10;
+  const slot=pad(h)+':'+pad(rounded);
+  const idx=ALL_SLOTS.indexOf(slot);
+  if(idx>=0){
+    const gridArea=document.getElementById('gridArea');
+    gridArea.scrollTo({top:idx*ROW_PX-80,behavior:'smooth'});
+  }
+  inp.value='';
+}
+
+// ══════════════════════════════════════════════════════
+// BALANCE
+// ══════════════════════════════════════════════════════
+function renderBalance(){
+  const sched=scheduleFor(currentDay),counts={};
+  data.categories.forEach(c=>counts[c.id]=0);
+  Object.values(sched).forEach(arr=>arr.forEach(en=>{
+    const b=data.blocks.find(x=>x.id===en.blockId);
+    if(b)counts[b.catId]=(counts[b.catId]||0)+1;
+  }));
+  const total=Object.values(counts).reduce((a,b)=>a+b,0);
+  const bar=document.getElementById('balanceBar'),leg=document.getElementById('balanceLegend'),warn=document.getElementById('balanceWarning');
+  if(!total){
+    bar.innerHTML=`<div class="balance-segment" style="width:100%;background:var(--border)"></div>`;
+    leg.innerHTML='<span style="font-size:11px;color:var(--text-muted)">Немає запланованих справ</span>';
+    warn.classList.remove('show');return;
+  }
+  let w=false;
+  bar.innerHTML=data.categories.map(c=>{
+    const p=(counts[c.id]||0)/total*100;if(p>60)w=true;
+    return p>0?`<div class="balance-segment" style="width:${p}%;background:${c.darkColor}"></div>`:'';
+  }).join('');
+  leg.innerHTML=data.categories.filter(c=>counts[c.id]>0).map(c=>
+    `<div class="balance-legend-item"><div class="balance-legend-dot" style="background:${c.darkColor}"></div><span>${c.name}: ${counts[c.id]}</span></div>`
+  ).join('');
+  warn.classList.toggle('show',w);
+  // Auto-save to Firebase after every balance update (covers all data mutations)
+  if(window.fbSave && window._fbReady) window.fbSave();
+}
+
+// ══════════════════════════════════════════════════════
+// EMOJI (slot-level and block-level)
+// ══════════════════════════════════════════════════════
+let emojiMode='slot'; // 'slot' or 'block'
+
+function openEmoji(e,key){
+  e.stopPropagation();emojiKey=key;emojiMode='slot';
+  showEmojiPanel(e.currentTarget);
+}
+function openBlockEmoji(e,instanceId){
+  e.stopPropagation();emojiKey=instanceId;emojiMode='block';
+  showEmojiPanel(e.currentTarget);
+}
+function showEmojiPanel(anchor){
+  const p=document.getElementById('emojiPanel');
+  const isBlock=emojiMode==='block';
+  const clearLabel=isBlock?'✕ Прибрати':'✕';
+  const clearFn=isBlock?`setBlockEmoji('')`:`setEmoji('')`;
+  const pickFn=(em)=>isBlock?`setBlockEmoji('${em}')`:`setEmoji('${em}')`;
+  p.innerHTML=`
+    <div class="emoji-grid">
+      <button class="emoji-opt" onclick="${clearFn}" title="Прибрати смайл" style="font-size:11px;color:var(--text-muted)">${clearLabel}</button>
+      ${EMOJIS.map(em=>`<button class="emoji-opt" onclick="${pickFn(em)}">${em}</button>`).join('')}
+    </div>
+    <div class="emoji-custom-row">
+      <input class="emoji-custom-input" id="emojiCustomInput" placeholder="😊" maxlength="2"
+        oninput="this.value=this.value.trim()" autocomplete="off">
+      <button class="emoji-custom-btn" onclick="applyCustomEmoji()">Додати</button>
+    </div>`;
+  const r=anchor.getBoundingClientRect();
+  p.style.left=Math.min(r.left,window.innerWidth-230)+'px';
+  p.style.top=(r.bottom+4)+'px';p.style.display='flex';
+  setTimeout(()=>{const i=document.getElementById('emojiCustomInput');if(i)i.focus();},80);
+}
+
+function applyCustomEmoji(){
+  const inp=document.getElementById('emojiCustomInput');
+  if(!inp)return;
+  const val=[...inp.value.trim()][0]||''; // take first char/emoji
+  if(!val)return;
+  if(emojiMode==='block')setBlockEmoji(val);
+  else setEmoji(val);
+}
+function setEmoji(em){
+  if(emojiKey)data.slotStatus[emojiKey]=em;
+  document.getElementById('emojiPanel').style.display='none';renderGrid();
+}
+function setBlockEmoji(em){
+  if(emojiKey){
+    if(em)data.blockEmoji[emojiKey]=em;
+    else delete data.blockEmoji[emojiKey];
+  }
+  document.getElementById('emojiPanel').style.display='none';renderGrid();
+}
+function clearBlockEmoji(instanceId){
+  delete data.blockEmoji[instanceId];
+  renderGrid();
+}
+
+// ══════════════════════════════════════════════════════
+// MONTH VIEW
+// ══════════════════════════════════════════════════════
+function renderMonthView(){
+  const wrap=document.getElementById('calWrap');
+  const first=new Date(calYear,calMonth,1),last=new Date(calYear,calMonth+1,0),today=new Date();
+  let dow=first.getDay()-1;if(dow<0)dow=6;
+  let html=`<div class="cal-nav-row">
+    <button class="month-nav" onclick="shiftMonth(-1)">‹</button>
+    <h2>${MONTH_NAMES[calMonth]} ${calYear}</h2>
+    <button class="month-nav" onclick="shiftMonth(1)">›</button>
+    <button class="btn" style="margin-left:auto;font-size:11px" onclick="setView('year')">↑ Рік</button>
+  </div>
+  <div class="month-grid">
+    ${['Пн','Вт','Ср','Чт','Пт','Сб','Нд'].map(d=>`<div class="month-dayname">${d}</div>`).join('')}`;
+  for(let i=0;i<dow;i++)html+=`<div class="month-cell other-month"></div>`;
+  for(let d=1;d<=last.getDate();d++){
+    const cellDate=new Date(calYear,calMonth,d);
+    const dk=dateKey(cellDate);
+    const isToday=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
+    const sched=data.schedule[dk]||{},tasks=Object.values(sched).flat();
+    const numHtml=isToday
+      ?`<div class="month-cell-num"><span class="month-cell-today-dot">${d}</span></div>`
+      :`<div class="month-cell-num">${d}</div>`;
+    const pills=tasks.map(en=>{
+      const b=data.blocks.find(x=>x.id===en.blockId),cat=b?data.categories.find(c=>c.id===b.catId):null;
+      return b?`<div class="month-task-pill" style="background:${cat?.color||'#eee'};color:${cat?.textColor||'#333'}">${b.name}</div>`:'';
+    }).join('');
+    html+=`<div class="month-cell${isToday?' today':''}" onclick="switchDayFromCal('${dk}')">${numHtml}${pills}</div>`;
+  }
+  const total=dow+last.getDate(),rem=total%7;
+  if(rem)for(let i=0;i<7-rem;i++)html+=`<div class="month-cell other-month"></div>`;
+  html+=`</div>`;wrap.innerHTML=html;
+}
+function switchDayFromCal(dk){setView('day');switchDayByKey(dk);}
+function shiftMonth(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderMonthView();}
+
+// ══════════════════════════════════════════════════════
+// YEAR VIEW
+// ══════════════════════════════════════════════════════
+function renderYearView(){
+  const wrap=document.getElementById('calWrap'),today=new Date();
+  let html=`<div class="cal-nav-row">
+    <button class="month-nav" onclick="shiftYear(-1)">‹</button>
+    <h2>${calYear}</h2>
+    <button class="month-nav" onclick="shiftYear(1)">›</button>
+  </div><div class="year-grid">`;
+  for(let m=0;m<12;m++){
+    const first=new Date(calYear,m,1),last=new Date(calYear,m+1,0);
+    let sdow=first.getDay()-1;if(sdow<0)sdow=6;
+    html+=`<div class="year-mini" onclick="yearClick(${m})">
+      <div class="year-mini-title">${MONTH_NAMES[m]}</div>
+      <div class="year-mini-grid">
+        ${['П','В','С','Ч','П','С','Н'].map(d=>`<div class="ymcell" style="font-size:7px">${d}</div>`).join('')}`;
+    for(let i=0;i<sdow;i++)html+=`<div class="ymcell"></div>`;
+    for(let d=1;d<=last.getDate();d++){
+      const ddow=(sdow+d-1)%7;
+      const isToday=d===today.getDate()&&m===today.getMonth()&&calYear===today.getFullYear();
+      const cellDk=dateKey(new Date(calYear,m,d));
+      const hasTasks=Object.values(data.schedule[cellDk]||{}).some(a=>a.length>0);
+      html+=`<div class="ymcell${hasTasks?' has-tasks':''}${isToday?' istoday':''}">${d}</div>`;
+    }
+    html+=`</div></div>`;
+  }
+  html+=`</div>`;wrap.innerHTML=html;
+}
+function yearClick(m){calMonth=m;setView('month');}
+function shiftYear(d){calYear+=d;renderYearView();}
+
+// ══════════════════════════════════════════════════════
+// DETAIL
+// ══════════════════════════════════════════════════════
+function openDetail(blockId){
+  const b=data.blocks.find(x=>x.id===blockId);if(!b)return;
+  const cat=data.categories.find(c=>c.id===b.catId)||{};
+  detailOpenBlock=blockId;
+  document.getElementById('detailTitle').textContent=b.name;
+  document.getElementById('detailTitle').style.color=cat.textColor||'inherit';
+  let html=`<div style="margin-bottom:10px">
+    <span class="detail-chip" style="background:${cat.color||'#eee'};color:${cat.textColor||'inherit'}">${cat.name||'—'}</span>
+    ${b.look?`<span class="detail-chip">👗 ${b.look}</span>`:''}
+  </div>`;
+  if(b.dur||b.loc)html+=`<div class="detail-section"><div class="detail-section-label">Детали</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      ${b.dur?`<div><div class="detail-section-label">Тривалість</div><div>${b.dur}</div></div>`:''}
+      ${b.loc?`<div><div class="detail-section-label">Локація</div><div>📍 ${b.loc}</div></div>`:''}
+    </div></div>`;
+  if(b.note)html+=`<div class="detail-section"><div class="detail-section-label">Нотатка</div><div class="detail-note">${b.note}</div></div>`;
+  document.getElementById('detailBody').innerHTML=html;
+  document.getElementById('detailModal').classList.add('show');
+}
+function editFromDetail(){closeModal('detailModal');openEditBlock(detailOpenBlock);}
+
+// ══════════════════════════════════════════════════════
+// BLOCK FORM
+// ══════════════════════════════════════════════════════
+function setLook(v){document.getElementById('fLook').value=v;}
+function populateCatSelect(sel){
+  document.getElementById('fCat').innerHTML=data.categories.map(c=>
+    `<option value="${c.id}"${c.id===sel?' selected':''}>${c.name}</option>`).join('');
+}
+function openAddBlock(catId){
+  editingBlockId=null;
+  document.getElementById('blockModalTitle').textContent='Нова справа';
+  document.getElementById('blockDelBtn').style.display='none';
+  ['fName','fDur','fLoc','fLook','fNote'].forEach(id=>document.getElementById(id).value='');
+  populateCatSelect(catId);document.getElementById('blockModal').classList.add('show');
+}
+function openEditBlock(blockId){
+  const b=data.blocks.find(x=>x.id===blockId);if(!b)return;
+  editingBlockId=blockId;
+  document.getElementById('blockModalTitle').textContent='Редагувати справу';
+  document.getElementById('blockDelBtn').style.display='inline-block';
+  document.getElementById('fName').value=b.name||'';document.getElementById('fDur').value=b.dur||'';
+  document.getElementById('fLoc').value=b.loc||'';document.getElementById('fLook').value=b.look||'';
+  document.getElementById('fNote').value=b.note||'';
+  populateCatSelect(b.catId);document.getElementById('blockModal').classList.add('show');
+}
+function saveBlock(){
+  const name=document.getElementById('fName').value.trim();if(!name){alert('Введи назву');return;}
+  const newDur=document.getElementById('fDur').value.trim();
+  const fields={name,catId:document.getElementById('fCat').value,
+    dur:newDur,loc:document.getElementById('fLoc').value.trim(),
+    look:document.getElementById('fLook').value.trim(),note:document.getElementById('fNote').value.trim()};
+  if(editingBlockId){
+    Object.assign(data.blocks.find(x=>x.id===editingBlockId)||{},fields);
+    // Also update durationMins in every schedule entry for this block
+    const newMins=parseDuration(newDur);
+    Object.values(data.schedule).forEach(dayObj=>{
+      Object.values(dayObj).forEach(arr=>{
+        arr.forEach(en=>{ if(en.blockId===editingBlockId) en.durationMins=newMins; });
+      });
+    });
+  } else data.blocks.push({id:'b'+Date.now(),...fields});
+  closeModal('blockModal');renderLibrary();renderGrid();renderBalance();
+}
+function deleteEditingBlock(){
+  if(!editingBlockId||!confirm('Видалити цю справу?'))return;
+  delBlock(editingBlockId,true);closeModal('blockModal');
+}
+function delBlock(blockId,skip){
+  if(!skip&&!confirm('Видалити справу? Вона зникне з усіх розкладів.'))return;
+  data.blocks=data.blocks.filter(b=>b.id!==blockId);
+  Object.keys(data.schedule).forEach(dk=>{
+    Object.keys(data.schedule[dk]).forEach(h=>{
+      data.schedule[dk][h]=data.schedule[dk][h].filter(en=>en.blockId!==blockId);
+      if(!data.schedule[dk][h].length)delete data.schedule[dk][h];
+    });
+  });
+  renderLibrary();renderGrid();renderBalance();
+}
+
+// ══════════════════════════════════════════════════════
+// CAT MANAGER
+// ══════════════════════════════════════════════════════
+function openCatManager(){renderCatManager();document.getElementById('catModal').classList.add('show');}
+
+let catManagerDragIdx=null;
+
+function renderCatManager(){
+  const body=document.getElementById('catManagerBody');
+  body.innerHTML='';
+  data.categories.forEach((cat,idx)=>{
+    const row=document.createElement('div');
+    row.draggable=true;
+    row.dataset.idx=idx;
+    row.style.cssText='display:flex;align-items:center;gap:7px;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:10px;cursor:default';
+    row.innerHTML=`
+      <span style="font-size:15px;color:var(--text-light);cursor:grab;flex-shrink:0;user-select:none" title="Перетягни для зміни порядку">⠿</span>
+      <div style="width:10px;height:10px;border-radius:50%;background:${cat.darkColor};flex-shrink:0"></div>
+      <input type="text" value="${cat.name}" onchange="updateCatName('${cat.id}',this.value)"
+        style="flex:1;border:1.5px solid var(--border);border-radius:7px;padding:5px 9px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--text);outline:none">
+      <label style="font-size:10px;color:var(--text-muted)">Фон</label>
+      <input type="color" value="${cat.color}" oninput="updateCatColor('${cat.id}','bg',this.value)"
+        style="width:24px;height:24px;border:1.5px solid var(--border);border-radius:5px;cursor:pointer;padding:1px">
+      <label style="font-size:10px;color:var(--text-muted)">Акцент</label>
+      <input type="color" value="${cat.darkColor}" oninput="updateCatColor('${cat.id}','dark',this.value)"
+        style="width:24px;height:24px;border:1.5px solid var(--border);border-radius:5px;cursor:pointer;padding:1px">
+      ${data.categories.length>1?`<button class="icon-btn" onclick="deleteCat('${cat.id}')">×</button>`:''}
+    `;
+    // Drag events for reorder
+    row.addEventListener('dragstart',e=>{
+      catManagerDragIdx=idx;row.style.opacity='.4';e.dataTransfer.effectAllowed='move';
+    });
+    row.addEventListener('dragend',()=>{row.style.opacity='';catManagerDragIdx=null;
+      body.querySelectorAll('[data-idx]').forEach(r=>r.style.outline='');
+    });
+    row.addEventListener('dragover',e=>{
+      if(catManagerDragIdx===null)return;e.preventDefault();
+      row.style.outline='2px dashed var(--text-muted)';
+    });
+    row.addEventListener('dragleave',()=>row.style.outline='');
+    row.addEventListener('drop',e=>{
+      if(catManagerDragIdx===null)return;e.preventDefault();
+      row.style.outline='';
+      const targetIdx=parseInt(row.dataset.idx);
+      if(catManagerDragIdx!==targetIdx){
+        const moved=data.categories.splice(catManagerDragIdx,1)[0];
+        data.categories.splice(targetIdx,0,moved);
+        renderCatManager();renderLibrary();renderBalance();
+      }
+      catManagerDragIdx=null;
+    });
+    body.appendChild(row);
+  });
+}
+function updateCatName(id,val){const c=data.categories.find(x=>x.id===id);if(c)c.name=val;renderLibrary();renderBalance();}
+function updateCatColor(id,type,val){
+  const c=data.categories.find(x=>x.id===id);if(!c)return;
+  if(type==='bg')c.color=val;if(type==='dark')c.darkColor=val;
+  renderCatManager();renderLibrary();renderGrid();renderBalance();
+}
+function deleteCat(id){
+  if(!confirm('Видалити категорію та всі її справи?'))return;
+  const ids=data.blocks.filter(b=>b.catId===id).map(b=>b.id);
+  data.categories=data.categories.filter(c=>c.id!==id);data.blocks=data.blocks.filter(b=>b.catId!==id);
+  Object.keys(data.schedule).forEach(dk=>{
+    Object.keys(data.schedule[dk]).forEach(h=>{
+      data.schedule[dk][h]=data.schedule[dk][h].filter(en=>!ids.includes(en.blockId));
+      if(!data.schedule[dk][h].length)delete data.schedule[dk][h];
+    });
+  });
+  renderCatManager();renderLibrary();renderGrid();renderBalance();
+}
+function addCategoryPrompt(){
+  const name=prompt('Назва нової категорії:');if(!name)return;
+  data.categories.push({id:'cat_'+Date.now(),name,color:'#E8E8E8',darkColor:'#AAAAAA',textColor:'#444444'});
+  renderCatManager();renderLibrary();renderBalance();
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL UTILS
+// ══════════════════════════════════════════════════════
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show'));
+    document.getElementById('emojiPanel').style.display='none';
+  }
+  if(e.key==='Enter'){
+    const inp=document.getElementById('emojiCustomInput');
+    if(inp&&document.activeElement===inp) applyCustomEmoji();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════════════
+// Expose globals so Firebase module can access them
+window.data           = data;
+window.renderDayTabs  = renderDayTabs;
+window.renderLibrary  = renderLibrary;
+window.renderGrid     = renderGrid;
+window.renderBalance  = renderBalance;
+window.showSyncStatus = showSyncStatus;
+
+init();
+</script>
+</body>
+</html>
